@@ -16,8 +16,6 @@ package cascading.hive;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.antlr.runtime.ANTLRStringStream;
-import org.antlr.runtime.CharStream;
 import org.antlr.runtime.RecognitionException;
 import org.antlr.runtime.Token;
 import org.antlr.runtime.TokenRewriteStream;

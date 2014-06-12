@@ -13,6 +13,9 @@
  */
 package org.apache.hadoop.hive.ql.io.orc;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Properties;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
@@ -28,151 +31,147 @@ import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.util.Progressable;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Properties;
-
 /**
  * A Hive OutputFormat for ORC files.
  */
 public class OrcOutputFormat extends FileOutputFormat<NullWritable, OrcSerdeRow>
-        implements HiveOutputFormat<NullWritable, OrcSerdeRow> {
+    implements HiveOutputFormat<NullWritable, OrcSerdeRow> {
 
-    private static class OrcRecordWriter
-            implements RecordWriter<NullWritable, OrcSerdeRow>,
-            FileSinkOperator.RecordWriter {
-        private Writer writer = null;
-        private final Path path;
-        private final OrcFile.WriterOptions options;
+  private static class OrcRecordWriter
+      implements RecordWriter<NullWritable, OrcSerdeRow>,
+      FileSinkOperator.RecordWriter {
+    private Writer writer = null;
+    private final Path path;
+    private final OrcFile.WriterOptions options;
 
-        OrcRecordWriter(Path path, OrcFile.WriterOptions options, JobConf conf) {
-            this.path = path;
-            this.options = options;
+    OrcRecordWriter(Path path, OrcFile.WriterOptions options, JobConf conf) {
+      this.path = path;
+      this.options = options;
             /*to enable override compression properties from job conf*/
-            String compression = conf.get(OrcFile.COMPRESSION);
-            if (compression != null) {
-                this.options.compress(CompressionKind.valueOf(compression));
-            }
-            String compressSize = conf.get(OrcFile.COMPRESSION_BLOCK_SIZE);
-            if (compressSize != null && !"".equals(compressSize.trim())) {
-                this.options.bufferSize(Integer.parseInt(compressSize));
-            }
+      String compression = conf.get(OrcFile.COMPRESSION);
+      if (compression != null) {
+        this.options.compress(CompressionKind.valueOf(compression));
+      }
+      String compressSize = conf.get(OrcFile.COMPRESSION_BLOCK_SIZE);
+      if (compressSize != null && !"".equals(compressSize.trim())) {
+        this.options.bufferSize(Integer.parseInt(compressSize));
+      }
 
-            String stripeSize = conf.get(OrcFile.STRIPE_SIZE);
-            if (stripeSize != null && !"".equals(stripeSize.trim())) {
-                this.options.stripeSize(Long.parseLong(stripeSize));
-            }
+      String stripeSize = conf.get(OrcFile.STRIPE_SIZE);
+      if (stripeSize != null && !"".equals(stripeSize.trim())) {
+        this.options.stripeSize(Long.parseLong(stripeSize));
+      }
 
-            String strideSize = conf.get(OrcFile.ROW_INDEX_STRIDE);
-            if (strideSize != null && !"".equals(strideSize.trim())) {
-                this.options.rowIndexStride(Integer.parseInt(strideSize));
-            }
+      String strideSize = conf.get(OrcFile.ROW_INDEX_STRIDE);
+      if (strideSize != null && !"".equals(strideSize.trim())) {
+        this.options.rowIndexStride(Integer.parseInt(strideSize));
+      }
 
-            String enableIndexes = conf.get(OrcFile.ENABLE_INDEXES);
-            if (enableIndexes != null && "false".equals(enableIndexes)) {
-                this.options.rowIndexStride(0);
-            }
+      String enableIndexes = conf.get(OrcFile.ENABLE_INDEXES);
+      if (enableIndexes != null && "false".equals(enableIndexes)) {
+        this.options.rowIndexStride(0);
+      }
 
-            String blockPadding = conf.get(OrcFile.BLOCK_PADDING);
-            if (blockPadding != null && !"".equals(blockPadding)) {
-                this.options.blockPadding(Boolean.valueOf(blockPadding));
-            }
+      String blockPadding = conf.get(OrcFile.BLOCK_PADDING);
+      if (blockPadding != null && !"".equals(blockPadding)) {
+        this.options.blockPadding(Boolean.valueOf(blockPadding));
+      }
 
-        }
-
-        @Override
-        public void write(NullWritable nullWritable,
-                          OrcSerdeRow row) throws IOException {
-            if (writer == null) {
-                options.inspector(row.getInspector());
-                writer = OrcFile.createWriter(path, options);
-            }
-            writer.addRow(row.getRow());
-        }
-
-        @Override
-        public void write(Writable row) throws IOException {
-            OrcSerdeRow serdeRow = (OrcSerdeRow) row;
-            if (writer == null) {
-                options.inspector(serdeRow.getInspector());
-                writer = OrcFile.createWriter(path, options);
-            }
-            writer.addRow(serdeRow.getRow());
-        }
-
-        @Override
-        public void close(Reporter reporter) throws IOException {
-            close(true);
-        }
-
-        @Override
-        public void close(boolean b) throws IOException {
-            // if we haven't written any rows, we need to create a file with a
-            // generic schema.
-            if (writer == null) {
-                // a row with no columns
-                ObjectInspector inspector = ObjectInspectorFactory.
-                        getStandardStructObjectInspector(new ArrayList<String>(),
-                                new ArrayList<ObjectInspector>());
-                options.inspector(inspector);
-                writer = OrcFile.createWriter(path, options);
-            }
-            writer.close();
-        }
     }
 
     @Override
-    public RecordWriter<NullWritable, OrcSerdeRow>
-    getRecordWriter(FileSystem fileSystem, JobConf conf, String name,
-                    Progressable reporter) throws IOException {
-        return new
-                OrcRecordWriter(new Path(getWorkOutputPath(conf), name), OrcFile.writerOptions(conf), conf);
+    public void write(NullWritable nullWritable,
+        OrcSerdeRow row) throws IOException {
+      if (writer == null) {
+        options.inspector(row.getInspector());
+        writer = OrcFile.createWriter(path, options);
+      }
+      writer.addRow(row.getRow());
     }
 
     @Override
-    public FileSinkOperator.RecordWriter
-    getHiveRecordWriter(JobConf conf,
-                        Path path,
-                        Class<? extends Writable> valueClass,
-                        boolean isCompressed,
-                        Properties tableProperties,
-                        Progressable reporter) throws IOException {
-        OrcFile.WriterOptions options = OrcFile.writerOptions(conf);
-        if (tableProperties.containsKey(OrcFile.STRIPE_SIZE)) {
-            options.stripeSize(Long.parseLong
-                    (tableProperties.getProperty(OrcFile.STRIPE_SIZE)));
-        }
-
-        if (tableProperties.containsKey(OrcFile.COMPRESSION)) {
-            options.compress(CompressionKind.valueOf
-                    (tableProperties.getProperty(OrcFile.COMPRESSION)));
-        }
-
-        if (tableProperties.containsKey(OrcFile.COMPRESSION_BLOCK_SIZE)) {
-            options.bufferSize(Integer.parseInt
-                    (tableProperties.getProperty
-                            (OrcFile.COMPRESSION_BLOCK_SIZE)));
-        }
-
-        if (tableProperties.containsKey(OrcFile.ROW_INDEX_STRIDE)) {
-            options.rowIndexStride(Integer.parseInt
-                    (tableProperties.getProperty
-                            (OrcFile.ROW_INDEX_STRIDE)));
-        }
-
-        if (tableProperties.containsKey(OrcFile.ENABLE_INDEXES)) {
-            if ("false".equals(tableProperties.getProperty
-                    (OrcFile.ENABLE_INDEXES))) {
-                options.rowIndexStride(0);
-            }
-        }
-
-        if (tableProperties.containsKey(OrcFile.BLOCK_PADDING)) {
-            options.blockPadding(Boolean.parseBoolean
-                    (tableProperties.getProperty
-                            (OrcFile.BLOCK_PADDING)));
-        }
-
-        return new OrcRecordWriter(path, options, conf);
+    public void write(Writable row) throws IOException {
+      OrcSerdeRow serdeRow = (OrcSerdeRow) row;
+      if (writer == null) {
+        options.inspector(serdeRow.getInspector());
+        writer = OrcFile.createWriter(path, options);
+      }
+      writer.addRow(serdeRow.getRow());
     }
+
+    @Override
+    public void close(Reporter reporter) throws IOException {
+      close(true);
+    }
+
+    @Override
+    public void close(boolean b) throws IOException {
+      // if we haven't written any rows, we need to create a file with a
+      // generic schema.
+      if (writer == null) {
+        // a row with no columns
+        ObjectInspector inspector = ObjectInspectorFactory.
+            getStandardStructObjectInspector(new ArrayList<String>(),
+                new ArrayList<ObjectInspector>());
+        options.inspector(inspector);
+        writer = OrcFile.createWriter(path, options);
+      }
+      writer.close();
+    }
+  }
+
+  @Override
+  public RecordWriter<NullWritable, OrcSerdeRow>
+  getRecordWriter(FileSystem fileSystem, JobConf conf, String name,
+      Progressable reporter) throws IOException {
+    return new
+        OrcRecordWriter(new Path(getWorkOutputPath(conf), name), OrcFile.writerOptions(conf), conf);
+  }
+
+  @Override
+  public FileSinkOperator.RecordWriter
+  getHiveRecordWriter(JobConf conf,
+      Path path,
+      Class<? extends Writable> valueClass,
+      boolean isCompressed,
+      Properties tableProperties,
+      Progressable reporter) throws IOException {
+    OrcFile.WriterOptions options = OrcFile.writerOptions(conf);
+    if (tableProperties.containsKey(OrcFile.STRIPE_SIZE)) {
+      options.stripeSize(Long.parseLong
+          (tableProperties.getProperty(OrcFile.STRIPE_SIZE)));
+    }
+
+    if (tableProperties.containsKey(OrcFile.COMPRESSION)) {
+      options.compress(CompressionKind.valueOf
+          (tableProperties.getProperty(OrcFile.COMPRESSION)));
+    }
+
+    if (tableProperties.containsKey(OrcFile.COMPRESSION_BLOCK_SIZE)) {
+      options.bufferSize(Integer.parseInt
+          (tableProperties.getProperty
+              (OrcFile.COMPRESSION_BLOCK_SIZE)));
+    }
+
+    if (tableProperties.containsKey(OrcFile.ROW_INDEX_STRIDE)) {
+      options.rowIndexStride(Integer.parseInt
+          (tableProperties.getProperty
+              (OrcFile.ROW_INDEX_STRIDE)));
+    }
+
+    if (tableProperties.containsKey(OrcFile.ENABLE_INDEXES)) {
+      if ("false".equals(tableProperties.getProperty
+          (OrcFile.ENABLE_INDEXES))) {
+        options.rowIndexStride(0);
+      }
+    }
+
+    if (tableProperties.containsKey(OrcFile.BLOCK_PADDING)) {
+      options.blockPadding(Boolean.parseBoolean
+          (tableProperties.getProperty
+              (OrcFile.BLOCK_PADDING)));
+    }
+
+    return new OrcRecordWriter(path, options, conf);
+  }
 }

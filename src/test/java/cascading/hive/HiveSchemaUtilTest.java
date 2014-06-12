@@ -16,12 +16,9 @@ package cascading.hive;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.hadoop.hive.ql.lib.Node;
-import org.apache.hadoop.hive.ql.parse.ASTNode;
 import org.junit.Test;
 
 import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertNotNull;
 
 /**
  */

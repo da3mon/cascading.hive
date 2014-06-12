@@ -45,198 +45,198 @@ import java.util.regex.Pattern;
 import static com.google.common.collect.Lists.newArrayList;
 
 /**
- * 
+ *
  * @author txiao
- * 
+ *
  */
 public class CascadingHCatUtil {
-    private static final Logger LOG = LoggerFactory
-			.getLogger(CascadingHCatUtil.class);
+  private static final Logger LOG = LoggerFactory
+      .getLogger(CascadingHCatUtil.class);
 
-	/**
-	 * 
-	 * @param db
-	 * @param table
-	 * @param filter
-	 * @param jobConf
-	 * @return A list of locations
-	 */
-	public static List<String> getDataStorageLocation(String db, String table,
-			String filter, JobConf jobConf) {
-		Preconditions.checkNotNull(table, "Table name must not be null");
+  /**
+   *
+   * @param db
+   * @param table
+   * @param filter
+   * @param jobConf
+   * @return A list of locations
+   */
+  public static List<String> getDataStorageLocation(String db, String table,
+      String filter, JobConf jobConf) {
+    Preconditions.checkNotNull(table, "Table name must not be null");
 
-		HiveMetaStoreClient client = null;
-		List<String> locations = new ArrayList<String>();
+    HiveMetaStoreClient client = null;
+    List<String> locations = new ArrayList<String>();
 
-		try {
-			client = getHiveMetaStoreClient(jobConf);
-			Table hiveTable = HCatUtil.getTable(client, db, table);
+    try {
+      client = getHiveMetaStoreClient(jobConf);
+      Table hiveTable = HCatUtil.getTable(client, db, table);
 
-            if (hiveTable.isPartitioned()) {
-                List<Partition> parts = null;
-                if (null != StringUtils.stripToNull(filter)) {
-                    parts = client.listPartitionsByFilter(db, table, filter, (short) -1);
-                } else {
-                    parts = client.listPartitions(db, table, (short)-1);
-                }
-
-                if (parts.size() > 0) {
-                    // Return more than one partitions when filter is
-                    // something
-                    // like ds >= 1234
-                    for (Partition part : parts) {
-                        locations.addAll(getFilesInHivePartition(part, jobConf));
-                    }
-                } else {
-                    logError("Table " + hiveTable.getTableName()
-                            + " doesn't have the specified partition:"
-                            + filter, null);
-                }
-
-            } else {
-                locations.add(hiveTable.getTTable().getSd().getLocation());
-            }
-        } catch (IOException e) {
-            logError("Error occured when getting hiveconf", e);
-		} catch (MetaException e) {
-			logError("Error occured when getting HiveMetaStoreClient", e);
-		} catch (NoSuchObjectException e) {
-			logError("Table doesn't exist in HCatalog: " + table, e);
-		} catch (TException e) {
-			logError("Error occured when getting Table", e);
-		} finally {
-			HCatUtil.closeHiveClientQuietly(client);
-		}
-
-		return locations;
-	}
-
-    protected static List<String> getFilesInHivePartition(Partition part, JobConf jobConf) {
-        List<String> result = newArrayList();
-
-        String ignoreFileRegex = jobConf.get(HCatTap.IGNORE_FILE_IN_PARTITION_REGEX, "");
-        Pattern ignoreFilePattern = Pattern.compile(ignoreFileRegex);
-
-        try {
-            Path partitionDirPath = new Path(part.getSd().getLocation());
-            FileStatus[] partitionContent = partitionDirPath.getFileSystem(jobConf).listStatus(partitionDirPath);
-            for(FileStatus currStatus : partitionContent) {
-                if(!currStatus.isDir()) {
-                    if(!ignoreFilePattern.matcher(currStatus.getPath().getName()).matches()) {
-                        result.add(currStatus.getPath().toUri().getPath());
-                    } else {
-                        LOG.debug("Ignoring path {} since matches ignore regex {}", currStatus.getPath().toUri().getPath(), ignoreFileRegex);
-                    }
-                }
-            }
-
-        } catch (IOException e) {
-            logError("Unable to read the content of partition '" + part.getSd().getLocation() + "'", e);
+      if (hiveTable.isPartitioned()) {
+        List<Partition> parts = null;
+        if (null != StringUtils.stripToNull(filter)) {
+          parts = client.listPartitionsByFilter(db, table, filter, (short) -1);
+        } else {
+          parts = client.listPartitions(db, table, (short)-1);
         }
 
-        return result;
+        if (parts.size() > 0) {
+          // Return more than one partitions when filter is
+          // something
+          // like ds >= 1234
+          for (Partition part : parts) {
+            locations.addAll(getFilesInHivePartition(part, jobConf));
+          }
+        } else {
+          logError("Table " + hiveTable.getTableName()
+              + " doesn't have the specified partition:"
+              + filter, null);
+        }
+
+      } else {
+        locations.add(hiveTable.getTTable().getSd().getLocation());
+      }
+    } catch (IOException e) {
+      logError("Error occured when getting hiveconf", e);
+    } catch (MetaException e) {
+      logError("Error occured when getting HiveMetaStoreClient", e);
+    } catch (NoSuchObjectException e) {
+      logError("Table doesn't exist in HCatalog: " + table, e);
+    } catch (TException e) {
+      logError("Error occured when getting Table", e);
+    } finally {
+      HCatUtil.closeHiveClientQuietly(client);
     }
 
-	/**
-	 * 
-	 * @param db
-	 * @param table
-	 * @param filter
-	 * @param path
-	 * @param jobConf
-	 * @return 
-	 */
-	public static boolean setDataStorageLocation(String db, String table,
-			String filter, String path, JobConf jobConf) {
-		Preconditions.checkNotNull(table, "Table name must not be null");
+    return locations;
+  }
 
-		HiveMetaStoreClient client = null;
-		List<String> locations = new ArrayList<String>();
+  protected static List<String> getFilesInHivePartition(Partition part, JobConf jobConf) {
+    List<String> result = newArrayList();
 
-		try {
-			client = getHiveMetaStoreClient(jobConf);
-			
-			Table hiveTable = HCatUtil.getTable(client, db, table);
-			hiveTable.setDataLocation(new URI(path));
-			
-			client.alter_table(db, table, hiveTable.getTTable());
-		} catch (IOException e) {
-			logError("Error occured when getting hiveconf", e);
-		} catch (MetaException e) {
-			logError("Error occured when getting HiveMetaStoreClient", e);
-		} catch (NoSuchObjectException e) {
-			logError("Table doesn't exist in HCatalog: " + table, e);
-		} catch (TException e) {
-			logError("Error occured when getting Table", e);
-		} catch (URISyntaxException e) {
-			logError("Error occured when getting uri from path:" + path, e);
-		} finally {
-			HCatUtil.closeHiveClientQuietly(client);
-		}
+    String ignoreFileRegex = jobConf.get(HCatTap.IGNORE_FILE_IN_PARTITION_REGEX, "");
+    Pattern ignoreFilePattern = Pattern.compile(ignoreFileRegex);
 
-		return true;
-	}
+    try {
+      Path partitionDirPath = new Path(part.getSd().getLocation());
+      FileStatus[] partitionContent = partitionDirPath.getFileSystem(jobConf).listStatus(partitionDirPath);
+      for(FileStatus currStatus : partitionContent) {
+        if(!currStatus.isDir()) {
+          if(!ignoreFilePattern.matcher(currStatus.getPath().getName()).matches()) {
+            result.add(currStatus.getPath().toUri().getPath());
+          } else {
+            LOG.debug("Ignoring path {} since matches ignore regex {}", currStatus.getPath().toUri().getPath(), ignoreFileRegex);
+          }
+        }
+      }
 
-	public static Table getHiveTable(String db, String table, JobConf conf) {
-		HiveMetaStoreClient client = null;
-		Table hiveTable = null;
+    } catch (IOException e) {
+      logError("Unable to read the content of partition '" + part.getSd().getLocation() + "'", e);
+    }
 
-		try {
-			client = getHiveMetaStoreClient(conf);
-			hiveTable = HCatUtil.getTable(client, db, table);
-		} catch (IOException e) {
-			logError("Error occured when getting hiveconf", e);
-		} catch (MetaException e) {
-			logError("Error occured when getting HiveMetaStoreClient", e);
-		} catch (NoSuchObjectException e) {
-			logError("Table doesn't exist in HCatalog: " + table, e);
-		} catch (TException e) {
-			logError("Error occured when getting Table", e);
-		} finally {
-			HCatUtil.closeHiveClientQuietly(client);
-		}
+    return result;
+  }
 
-		return hiveTable;
-	}
+  /**
+   *
+   * @param db
+   * @param table
+   * @param filter
+   * @param path
+   * @param jobConf
+   * @return
+   */
+  public static boolean setDataStorageLocation(String db, String table,
+      String filter, String path, JobConf jobConf) {
+    Preconditions.checkNotNull(table, "Table name must not be null");
 
-	private static HiveMetaStoreClient getHiveMetaStoreClient(JobConf jobConf)
-			throws IOException, MetaException {
-		HiveConf hiveConf = HCatUtil.getHiveConf(jobConf);
+    HiveMetaStoreClient client = null;
+    List<String> locations = new ArrayList<String>();
 
-		return HCatUtil.getHiveClient(hiveConf);
-	}
+    try {
+      client = getHiveMetaStoreClient(jobConf);
 
-	/**
-	 * Build {@link org.apache.hive.hcatalog.data.schema.HCatSchema} of table
-	 * from a list of {@link org.apache.hadoop.hive.metastore.api.FieldSchema}
-	 * 
-	 * @param columns
-	 * @return
-	 */
-	public static HCatSchema buildHCatSchema(List<FieldSchema> columns) {
-		HCatSchema schema = null;
-		
-		try {
-			schema = new HCatSchema(HCatUtil.getHCatFieldSchemaList(columns));
-		} catch (HCatException e) {
-			logError("Error occured when building table schema", e);
-		}
-		
-		return schema;
-	}
+      Table hiveTable = HCatUtil.getTable(client, db, table);
+      hiveTable.setDataLocation(new URI(path));
 
-	private static void logError(String message, Exception e) {
-		LOG.error(message, e);
-		throw new CascadeException(e);
-	}
-	
-	/**
-	 * Assign HCatalog default db value to db if it is null
-	 * 
-	 * @param db
-	 * @return
-	 */
-	public static String hcatDefaultDBIfNull(String db) {
-		return db == null ? MetaStoreUtils.DEFAULT_DATABASE_NAME : db;
-	}
+      client.alter_table(db, table, hiveTable.getTTable());
+    } catch (IOException e) {
+      logError("Error occured when getting hiveconf", e);
+    } catch (MetaException e) {
+      logError("Error occured when getting HiveMetaStoreClient", e);
+    } catch (NoSuchObjectException e) {
+      logError("Table doesn't exist in HCatalog: " + table, e);
+    } catch (TException e) {
+      logError("Error occured when getting Table", e);
+    } catch (URISyntaxException e) {
+      logError("Error occured when getting uri from path:" + path, e);
+    } finally {
+      HCatUtil.closeHiveClientQuietly(client);
+    }
+
+    return true;
+  }
+
+  public static Table getHiveTable(String db, String table, JobConf conf) {
+    HiveMetaStoreClient client = null;
+    Table hiveTable = null;
+
+    try {
+      client = getHiveMetaStoreClient(conf);
+      hiveTable = HCatUtil.getTable(client, db, table);
+    } catch (IOException e) {
+      logError("Error occured when getting hiveconf", e);
+    } catch (MetaException e) {
+      logError("Error occured when getting HiveMetaStoreClient", e);
+    } catch (NoSuchObjectException e) {
+      logError("Table doesn't exist in HCatalog: " + table, e);
+    } catch (TException e) {
+      logError("Error occured when getting Table", e);
+    } finally {
+      HCatUtil.closeHiveClientQuietly(client);
+    }
+
+    return hiveTable;
+  }
+
+  private static HiveMetaStoreClient getHiveMetaStoreClient(JobConf jobConf)
+      throws IOException, MetaException {
+    HiveConf hiveConf = HCatUtil.getHiveConf(jobConf);
+
+    return HCatUtil.getHiveClient(hiveConf);
+  }
+
+  /**
+   * Build {@link org.apache.hive.hcatalog.data.schema.HCatSchema} of table
+   * from a list of {@link org.apache.hadoop.hive.metastore.api.FieldSchema}
+   *
+   * @param columns
+   * @return
+   */
+  public static HCatSchema buildHCatSchema(List<FieldSchema> columns) {
+    HCatSchema schema = null;
+
+    try {
+      schema = new HCatSchema(HCatUtil.getHCatFieldSchemaList(columns));
+    } catch (HCatException e) {
+      logError("Error occured when building table schema", e);
+    }
+
+    return schema;
+  }
+
+  private static void logError(String message, Exception e) {
+    LOG.error(message, e);
+    throw new CascadeException(e);
+  }
+
+  /**
+   * Assign HCatalog default db value to db if it is null
+   *
+   * @param db
+   * @return
+   */
+  public static String hcatDefaultDBIfNull(String db) {
+    return db == null ? MetaStoreUtils.DEFAULT_DATABASE_NAME : db;
+  }
 }
