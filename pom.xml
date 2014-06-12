@@ -12,14 +12,19 @@
   ~ limitations under the License.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <parent>
+    <groupId>org.sonatype.oss</groupId>
+    <artifactId>oss-parent</artifactId>
+    <version>7</version>
+  </parent>
+
   <modelVersion>4.0.0</modelVersion>
-  <groupId>com.ebay</groupId>
+  <groupId>com.squareup.cascading-hive</groupId>
   <artifactId>cascading-hive</artifactId>
-  <packaging>jar</packaging>
   <version>0.0.2-SNAPSHOT</version>
-  <name>Cascading adapters for Hive and HCatalog</name>
+  <name>Square's fork of Cascading adapters for Hive and HCatalog</name>
+
   <properties>
     <targetJdk>1.6</targetJdk>
     <java.version>1.6</java.version>
@@ -34,18 +39,18 @@
 
   <developers>
     <developer>
-      <id>branky</id>
-      <name>Branky Shao</name>
-      <email>bishao@ebay.com</email>
-      <url></url>
-    </developer>
-    <developer>
-      <id>tao</id>
-      <name>Tao Xiao</name>
-      <email>taxiao@ebay.com</email>
-      <url></url>
+      <id>da3mon</id>
+      <name>da3mon mccormick</name>
+      <email>damon@squareup.com</email>
     </developer>
   </developers>
+
+  <repositories>
+    <repository>
+      <id>conjars.org</id>
+      <url>http://conjars.org/repo</url>
+    </repository>
+  </repositories>
 
   <distributionManagement>
     <repository>
@@ -62,8 +67,9 @@
 
   <scm>
     <url>https://stash.corp.squareup.com/projects/sq/cascading.hive</url>
-    <connection>scm:git:https://stash.corp.squareup.com/sq/cascading.hive</connection>
-    <developerConnection>scm:git:git@git.corp.squareup.com/sq/cascading.hive.git</developerConnection>
+    <connection>scm:git:https://git.corp.squareup.com/sq/cascading.hive</connection>
+    <developerConnection>scm:git:git@git.corp.squareup.com:sq/cascading.hive.git</developerConnection>
+    <tag>cascading-hive-0.0.2</tag>
   </scm>
 
   <profiles>
@@ -191,6 +197,11 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>2.5</version>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>

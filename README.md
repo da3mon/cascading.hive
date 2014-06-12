@@ -13,9 +13,9 @@ Maven dependency
 ----------------
 ```
 <dependency>
-  <groupId>com.ebay</groupId>
+  <groupId>com.squareup.cascading-hive</groupId>
   <artifactId>cascading-hive</artifactId>
-  <version>0.0.2-SNAPSHOT</version>
+  <version>0.0.2</version>
   <scope>compile</scope>
 </dependency> 
 ```
