@@ -277,11 +277,6 @@
                   <exclude>org.datanucleus:datanucleus-core</exclude>
                   <exclude>org.datanucleus:datanucleus-rdbms</exclude>
                   <!-- Do not rely on minimizeJar, exclude more dependencies to make the jar smaller-->
-                  <exclude>antlr:antlr</exclude>
-                  <exclude>org.antlr:antlr</exclude>
-                  <exclude>org.antlr:antlr-runtime</exclude>
-                  <exclude>org.antlr:stringtemplate</exclude>
-                  <exclude>org.antlr:ST4</exclude>
                   <exclude>org.apache.avro:avro</exclude>
                   <exclude>org.apache.avro:avro-ipc</exclude>
                   <exclude>org.apache.avro:avro-mapred</exclude>
