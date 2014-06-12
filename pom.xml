@@ -22,7 +22,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.squareup.cascading-hive</groupId>
   <artifactId>cascading-hive</artifactId>
-  <version>0.0.3-SNAPSHOT</version>
+  <version>0.0.3</version>
   <name>Square's fork of Cascading adapters for Hive and HCatalog</name>
 
   <properties>
@@ -69,7 +69,7 @@
     <url>https://stash.corp.squareup.com/projects/sq/cascading.hive</url>
     <connection>scm:git:https://git.corp.squareup.com/sq/cascading.hive</connection>
     <developerConnection>scm:git:git@git.corp.squareup.com:sq/cascading.hive.git</developerConnection>
-    <tag>cascading-hive-0.0.2</tag>
+    <tag>0.0.3</tag>
   </scm>
 
   <profiles>
