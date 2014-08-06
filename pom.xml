@@ -293,6 +293,12 @@
                   <exclude>com.google.code.findbugs:jsr305</exclude>
                 </excludes>
               </artifactSet>
+              <relocations>
+                <relocation>
+                  <pattern>com.google.protobuf.</pattern>
+                  <shadedPattern>shaded_for_cascadinghive.com.google.protobuf.</shadedPattern>
+                </relocation>
+              </relocations>
             </configuration>
           </execution>
         </executions>
