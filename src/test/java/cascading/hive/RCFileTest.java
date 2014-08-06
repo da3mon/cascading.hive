@@ -17,23 +17,29 @@ package cascading.hive;
 import cascading.flow.Flow;
 import cascading.flow.FlowConnector;
 import cascading.flow.hadoop.HadoopFlowConnector;
+import cascading.flow.hadoop.HadoopFlowProcess;
 import cascading.pipe.Pipe;
 import cascading.pipe.assembly.CountBy;
+import cascading.scheme.Scheme;
 import cascading.scheme.hadoop.TextDelimited;
 import cascading.tap.SinkMode;
 import cascading.tap.hadoop.Lfs;
 import cascading.tuple.Fields;
 import cascading.tuple.Tuple;
+import cascading.tuple.TupleEntryCollector;
 import cascading.tuple.TupleEntryIterator;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Properties;
 import junitx.framework.FileAssert;
+import org.apache.hadoop.hive.serde2.lazy.LazyArray;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /*
  */
@@ -41,14 +47,14 @@ public class RCFileTest {
 
   private FlowConnector connector;
 
-  private String rc, txt;
-
+  private String rc, txt, complex_rc;
 
   @Before
   public void setup() {
     connector = new HadoopFlowConnector(new Properties());
     rc = "src/test/resources/data/test.rc";
     txt = "src/test/resources/data/test.txt";
+    complex_rc = "src/test/resources/data/complex.rc";
   }
 
   @AfterClass
@@ -84,6 +90,37 @@ public class RCFileTest {
       assertEquals(expected.getInteger(0), actual.getInteger(0));
       assertEquals(expected.getString(1), actual.getString(1));
       assertEquals(expected.getString(2), actual.getString(2));
+    }
+  }
+
+  @Test
+  public void testWriteComplex() throws Exception {
+    final Scheme scheme = new RCFile("col1 int, col2 string, col3 string, col4 array<int>");
+
+    final Lfs input = new Lfs(scheme, complex_rc, SinkMode.REPLACE);
+    final Lfs output = new Lfs(scheme, complex_rc + ".test", SinkMode.REPLACE);
+
+    final TupleEntryCollector tec = input.openForWrite(new HadoopFlowProcess());
+    tec.add(new Tuple(1, "a", "A", Arrays.asList(1, 2)));
+    tec.close();
+
+    final Pipe pipe = new Pipe("convert");
+    final Flow flow = connector.connect(input, output, pipe);
+    flow.complete();
+
+    final TupleEntryIterator it1 = output.openForRead(new HadoopFlowProcess());
+    final TupleEntryIterator it2 = new Lfs(scheme, complex_rc + ".test").openForRead(new HadoopFlowProcess());
+
+    while(it1.hasNext() && it2.hasNext()) {
+      final Tuple expected = it1.next().getTuple();
+      final Tuple actual = it2.next().getTuple();
+      assertNotNull(expected.getInteger(0));
+      assertEquals(expected.getInteger(0), actual.getInteger(0));
+      assertEquals(expected.getString(1), actual.getString(1));
+      assertEquals(expected.getString(2), actual.getString(2));
+      assertNotNull(expected.getObject(3));
+      assertNotNull(actual.getObject(3));
+      assertEquals(expected.getObject(3), actual.getObject(3));
     }
   }
 
